@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Blog</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
+        .post { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; }
+        .comment { background: #f4f4f4; padding: 10px; margin-top: 5px; font-size: 0.9em; }
+        input, textarea { width: 100%; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>Create a Post</h2>
+    <input type="text" id="author" placeholder="Your Name" required>
+    <input type="text" id="title" placeholder="Post Title" required>
+    <textarea id="content" placeholder="Write your post here..."></textarea>
+    <button onclick="createPost()">Submit Post</button>
+
+    <h2>Blog Feed</h2>
+    <div id="feed"></div>
+
+    <script>
+        // Load posts when the page opens
+        async function loadPosts() {
+            const res = await fetch('/api/posts');
+            const posts = await res.json();
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '';
+
+            for (const post of posts) {
+                // Fetch comments for this post
+                const commentRes = await fetch(`/api/posts/${post.id}/comments`);
+                const comments = await commentRes.json();
+                
+                const commentsHTML = comments.map(c => 
+                    `<div class="comment"><strong>${c.author}:</strong> ${c.text}</div>`
+                ).join('');
+
+                feed.innerHTML += `
+                    <div class="post">
+                        <h3>${post.title} <small>by ${post.author}</small></h3>
+                        <p>${post.content}</p>
+                        <div id="comments-${post.id}">${commentsHTML}</div>
+                        <hr>
+                        <input type="text" id="commenter-${post.id}" placeholder="Your Name">
+                        <input type="text" id="comment-text-${post.id}" placeholder="Add a comment...">
+                        <button onclick="addComment(${post.id})">Comment</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Send new post to backend
+        async function createPost() {
+            await fetch('/api/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    author: document.getElementById('author').value,
+                    title: document.getElementById('title').value,
+                    content: document.getElementById('content').value
+                })
+            });
+            loadPosts(); // Refresh feed
+        }
+
+        // Send new comment to backend
+        async function addComment(postId) {
+            await fetch(`/api/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    author: document.getElementById(`commenter-${postId}`).value,
+                    text: document.getElementById(`comment-text-${postId}`).value
+                })
+            });
+            loadPosts(); // Refresh feed
+        }
+
+        // Initial load
+        loadPosts();
+    </script>
+</body>
+</html>
